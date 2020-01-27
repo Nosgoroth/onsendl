@@ -221,23 +221,6 @@ def youtubeGetLatestVideosFromChannel(channel_id, titleMatcher=None):
 def downloadYoutubeShowEpisode(showConfig, videoInfo):
 	return downloadShowEpisode(showConfig, videoInfo)
 
-def onsenGetProgramInfoFromId(id, auth):
-	x = requests.get("https://app.onsen.ag/api/me/downloads/"+str(id), allow_redirects=True, headers={
-		'X-Device-Identifier': '3785A781-F9EF-4339-8AF8-05ED15AD07BA',
-		'X-App-Version': '25',
-		'Accept-Language': 'en;q=1.0, es-ES;q=0.9, ja;q=0.8',
-		'Accept-Version': 'v3',
-		'Content-Type': 'application/json',
-		'Accept': '*/*',
-		'User-Agent': 'iOS/Onsen/2.6.1',
-		'Content-Length': '0',
-		'Authorization': 'Bearer '+auth,
-		'X-Device-Os': 'ios',
-		'Host': 'app.onsen.ag',
-		'X-Device-Name': 'GLaDOS'
-	})
-	return x.json()
-
 
 def onsenGetProgramInfo(show):
 	'''

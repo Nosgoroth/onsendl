@@ -77,3 +77,14 @@ You can get the channel id from its URL:
 
 * Bilibili: `29338618` from `https://space.bilibili.com/29338618/video?keyword=工作时见不到面所以开始做广播了`
 * Youtube: `UCYBwKaLwCGY7k3auR_FLanA` from `https://www.youtube.com/channel/UCYBwKaLwCGY7k3auR_FLanA`
+
+## What do I do now
+
+Just run the script: `python onsendl.py`. The check for previously downloaded episodes is very basic: if the episode isn't there, it gets downloaded. Shows are downloaded into subfolders of the configured relative download path.
+
+After download, I suggest you leave the shows there and copy the files if you need them somewhere else.
+
+Some more ideas and suggestions:
+
+* Automate regular runs of this script via `crontab` or similar so that you'll always have the latest shows.
+* Build a webapp that read the files in the output folder of this script and generates RSS feeds that you can feed your podcast app of choice.

@@ -74,9 +74,6 @@ def downloadShowEpisodeWithAnnie(showConfig, videoInfo):
 
 	print "Downloading", fnmp3
 
-	print getExistingVideoFilenameFromBaseName(fpbase)
-	return False
-
 	if getExistingVideoFilenameFromBaseName(fpbase):
 		print "   ", "Video already exists, won't download"
 	else:
@@ -114,7 +111,6 @@ def getExistingVideoFilenameFromBaseName(fnbase):
 	found = None
 	for ext in ("mp4", "flv"):
 		fnext = "{}.{}".format(fnbase, ext)
-		pprint(fnext)
 		if os.path.exists(fnext):
 			found = fnext
 			break

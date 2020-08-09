@@ -71,6 +71,8 @@ If a `downloadMethod` with a value of `annie` isn't specified, `youtube-dl` will
 
 For `idExtractRegex` the first capturing group of the regular expression will be used as the episode number. If the regex doesn't match, a sha1 of the video title will be used.
 
+Youtube shows can also use the `maxResults` key to determine the number of videos to consult from Youtube's API. By default it's 10, and the maximum value accepted by Youtube's API is 50.
+
 #### Channel id
 
 You can get the channel id from its URL:

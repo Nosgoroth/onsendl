@@ -74,15 +74,18 @@ def downloadShowEpisodeWithAnnie(showConfig, videoInfo):
 	fp = os.path.join(outfolder, fn)
 	fpbase = os.path.join(outfolder, fnbase)
 	fpmp3 = os.path.join(outfolder, fnmp3)
-	if os.path.exists(fpmp3):
-		print "Already downloaded:", fnmp3
+	if os.path.exists(fpmp3) or (
+		'video' in showConfig and showConfig['video']
+		and getExistingVideoFilenameFromBaseName(fpbase)
+		):
+		print "Already downloaded:", fnbase
 		return False
 
 	url = videoInfo['url']
 	if "urlSuffix" in showConfig:
 		url += showConfig["urlSuffix"]
 
-	print "Downloading", fnmp3
+	print "Downloading", fnbase
 
 	if getExistingVideoFilenameFromBaseName(fpbase):
 		print "   ", "Video already exists, won't download"
@@ -102,6 +105,10 @@ def downloadShowEpisodeWithAnnie(showConfig, videoInfo):
 	if not fpvid:
 		print "   ", "ERROR: Video wasn't downloaded!"
 		return False
+
+	if 'video' in showConfig and showConfig['video']:
+		print "Downloaded as video"
+		return True
 
 	print "   ", "Converting to mp3..."
 	with open(os.devnull, "w") as devnull:
@@ -145,12 +152,16 @@ def downloadShowEpisodeWithYoutubeDl(showConfig, videoInfo):
 	if "idSuffix" in showConfig:
 		epnum += showConfig["idSuffix"]
 
+	basename = '{} - {}'.format(showConfig["title"], epnum)
 	fn = '{} - {}.mp4'.format(showConfig["title"], epnum)
 	fnmp3 = '{} - {}.mp3'.format(showConfig["title"], epnum)
 
 	fp = os.path.join(outfolder, fn)
 	fpmp3 = os.path.join(outfolder, fnmp3)
-	if os.path.exists(fpmp3):
+	if os.path.exists(fpmp3) or (
+		'video' in showConfig and showConfig['video']
+		and os.path.exists(fp)
+		):
 		print "Already downloaded:", fnmp3
 		return False
 
@@ -158,18 +169,34 @@ def downloadShowEpisodeWithYoutubeDl(showConfig, videoInfo):
 	if "urlSuffix" in showConfig:
 		url += showConfig["urlSuffix"]
 
-	print "Downloading", fnmp3
+	print "Downloading", basename
 
-	cmd = [
-		"youtube-dl",
-		"-o", fp, 
-		"--extract-audio", "--audio-format", "mp3", "--audio-quality", "128K",
-		videoInfo['url'],
-	]
+	cmd = None
+	expectedFile = None
+	if 'video' in showConfig and showConfig['video']:
+		cmd = [
+			"youtube-dl",
+			"-o", fp,
+			videoInfo['url'],
+		]
+		expectedFile = fp
+	else:
+		cmd = [
+			"youtube-dl",
+			"-o", fp, 
+			"--extract-audio", "--audio-format", "mp3", "--audio-quality", "128K",
+			videoInfo['url'],
+		]
+		expectedFile = fpmp3
+	
 	subprocess.call(cmd)
 
-	print "Downloaded"
-	return True
+	if os.path.exists(expectedFile):
+		print "Downloaded"
+		return True
+	else:
+		print "Couldn't download"
+		return False
 
 
 def bilibiliGetVideoList(spaceid, searchstr):
@@ -195,11 +222,20 @@ def bilibiliGetVideoList(spaceid, searchstr):
 def downloadBilibiliShowEpisode(showConfig, videoInfo):
 	return downloadShowEpisode(showConfig, videoInfo)
 
-def youtubeGetLatestVideosFromChannel(channel_id, titleMatcher=None):
+def youtubeGetLatestVideosFromChannel(channel_id, titleMatcher=None, maxResults=10):
 	try:
-		url = YOUTUBEBASEAPI+'search?key={}&channelId={}&type=video&part=snippet,id&order=date&maxResults=10'.format(config.google_apikey, channel_id)
+		url = YOUTUBEBASEAPI+'search?key={}&channelId={}&type=video&part=snippet,id&order=date&maxResults={}'.format(config.google_apikey, channel_id, maxResults)
 		r = requests.get(url)
 		data = r.json()
+
+		if not data:
+			raise Exception("No data received")
+		if "error" in data and "message" in data["error"]:
+			raise Exception(data["error"]["message"])
+		if "error" in data and "code" in data["error"] and data["error"]["code"] >= 400:
+			raise Exception(data["error"]["code"])
+
+		#pprint(data)
 
 		h = HTMLParser()
 		
@@ -220,7 +256,7 @@ def youtubeGetLatestVideosFromChannel(channel_id, titleMatcher=None):
 		
 		return videos
 	except Exception as e:
-		raise
+		print "Youtube:", e
 		return []
 
 
@@ -316,7 +352,8 @@ def main():
 	if config.serviceIsEnabled["youtube"]:
 		for show in config.youtube_shows:
 			if not show['enabled']: continue
-			videos = youtubeGetLatestVideosFromChannel(show["channel"], show["search"])
+			maxResults = show["maxResults"] if "maxResults" in show else 10
+			videos = youtubeGetLatestVideosFromChannel(show["channel"], show["search"], maxResults)
 			for video in videos:
 				downloadYoutubeShowEpisode(show, video)
 	

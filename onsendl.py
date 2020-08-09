@@ -19,12 +19,22 @@ except ImportError:
 	# Python 3
 	from html.parser import HTMLParser
 
-ONSEN_APIURL_MOVIEINFO = "http://www.onsen.ag/data/api/getMovieInfo/"
+ONSEN_APIURL_MOVIEINFO = "https://www.onsen.ag/web_api/programs/"
 
 YOUTUBEBASEVIDEOURL = 'https://www.youtube.com/watch?v='
 YOUTUBEBASEAPI = 'https://www.googleapis.com/youtube/v3/'
 
 BILIBILI_APIROOT = "https://api.bilibili.com"
+
+
+def downloadHlsStreamWithFFmpeg(url, filename):
+	'''
+	ffmpeg -i
+	-bsf:a aac_adtstoasc -vn -crf 50 file.mp3
+	'''
+	ffmpegcmd = ['ffmpeg', '-i', url, filename]
+	with open(os.devnull, "w") as devnull:
+		subprocess.call(ffmpegcmd, stdout=devnull)
 
 
 def downloadShowEpisode(showConfig, videoInfo, downloadMethod=None):
@@ -229,15 +239,37 @@ def onsenGetProgramInfo(show):
 		showname = show["showid"]
 
 		x = requests.get(ONSEN_APIURL_MOVIEINFO+showname, allow_redirects=True)
-		x = re.search(r"^callback\((\{.*\})\);$", x.text)
-		x = json.loads(x.group(1))
+		# x = re.search(r"^callback\((\{.*\})\);$", x.text)
+		x = x.json()
 
-		x["file"] = x["moviePath"]["iPhone"]
+		title = x["current_episode"]["title"]
+		episodes = [item for item in x["contents"] if item["latest"]]
+		if not len(episodes):
+			print "No episodes available for", showname
+			return None
+		episode = episodes[0]
+		x["episode"] = episode
+		x["m3u8"] = episode["streaming_url"]
 
 		x["title"] = show["title"] if "title" in show else showname.capitalize()
 
+		eptitle = episode["title"]
+
+		if "idExtractRegex" in show:
+			try:
+				eptitle = re.search(show["idExtractRegex"], eptitle, re.UNICODE).group(1)
+			except:
+				print "WARN: Couldn't extract id from video title:", eptitle
+
+		try:
+			eptitle = str(int(eptitle))
+		except:
+			pass
+
+		x["eptitle"] = eptitle
+
 		return x
-	except:
+	except Exception as ex:
 		print "An error ocurred downloading show info from", showname
 		return None
 	
@@ -245,8 +277,10 @@ def downloadFromProgramInfo(info):
 	if not info:
 		return False
 
-	ext = os.path.splitext(urlparse.urlparse(info["file"]).path)[1]
-	fn = info["title"] + " - " + info["count"] + " ["+ info["update"] +"]"+ext
+	eptitle = info["eptitle"]
+	date = info["current_episode"]["delivery_date"]
+
+	fn = "%s - %s.mp3" % (info["title"], eptitle)
 	
 	fdir = os.path.join(os.path.dirname(os.path.realpath(__file__)), config.dlfolder, info["title"])
 	try: os.mkdir(fdir)
@@ -259,9 +293,12 @@ def downloadFromProgramInfo(info):
 		return False
 
 	print "Downloading", fn
-	r = requests.get(info["file"], allow_redirects=True)
-	with open(fp, 'wb') as f:
-		f.write(r.content)
+
+	downloadHlsStreamWithFFmpeg(info["m3u8"], fp)
+	
+	#r = requests.get(info["file"], allow_redirects=True)
+	#with open(fp, 'wb') as f:
+	#	f.write(r.content)
 
 	print "Downloaded"
 
